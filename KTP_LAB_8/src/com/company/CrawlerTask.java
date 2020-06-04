@@ -1,43 +1,70 @@
 package com.company;
-import java.util.*;
 
-/**
- * CrawlerTask реализует управляемый интерфейс. Каждый экземпляр имеет
- * ссылку на экземпляры класса URLPool. Получает пару URL depth из списка,
- * извлекает веб-страницу, получает все URLs со страницы и добавляет новую
- * пару URLDepth в URL список для каждого найденного URL.
- */
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
+
 public class CrawlerTask implements Runnable {
+    final static int AnyDepth = 0;
+    private URLPool Pool_se;
 
-    /** Поле для заданного depthPair. */
-    public URLDepthPair depthPairGTR;
+    /** Нет "/" для поддержки https */
+    private String Prefix_se = "http";
 
-    /** Поле для списка URL. */
-    public URLPool myPoolGTR;
-
-    /** Конструктор для установки переменной URL списка. */
-    public CrawlerTask(URLPool pool) {
-        myPoolGTR = pool;
+    @Override
+    public void run() {
+        try {
+            Scan();
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
-    /** Метод для запуска задач CrawlerTask. */
-    public void run() {
+    public CrawlerTask(URLPool pool) {
+        Pool_se = pool;
+    }
 
-        /** Получает следующий depthPair из списка. */
-        depthPairGTR = myPoolGTR.get();
+    private  void  Scan() throws IOException, InterruptedException {
+        while (true) {
+            Process(Pool_se.get());
 
-        int myDepth = depthPairGTR.getDepth();
-
-        /** Получает все ссылки с сайта и хранит их в новом LinkedList. */
-        LinkedList<String> linksList = new LinkedList<String>();
-        linksList = Crawler.getAllLinks(depthPairGTR);
-
-        for (int i=0;i<linksList.size();i++) {
-            String newURL = linksList.get(i);
-
-            /** Создаёт новый depthPair для каждой найденной ссылки и добавляет в список. */
-            URLDepthPair newDepthPair = new URLDepthPair(newURL, myDepth + 1);
-            myPoolGTR.put(newDepthPair);
         }
+    }
+
+    private void Process(URLDepthPair pair) throws IOException{
+        /** Установка соединения и перенаправление */
+        URL url = new URL(pair.getURL());
+        URLConnection connection = url.openConnection();
+
+        String redirect = connection.getHeaderField("Местоположение");
+        if (redirect != null) {
+            connection = new URL(redirect).openConnection();
+        }
+        Pool_se.addProcessed(pair);
+
+        if (pair.getDepth() == 0) {
+            return;
+        }
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String input;
+        while ((input = reader.readLine()) != null) {
+            while (input.contains("a href=\"" + Prefix_se)) {
+                input = input.substring(input.indexOf("a href=\"" + Prefix_se) + 8);
+                String link = input.substring(0, input.indexOf('\"'));
+                if(link.contains(" ")){
+                    link = link.replace(" ", "%20");
+                }
+                /** Не обрабатывает посещение одинаковых ссылок */
+                if (Pool_se.getNotProcessed().contains(new URLDepthPair(link, AnyDepth)) ||
+                        Pool_se.getProcessed().contains(new URLDepthPair(link, AnyDepth))) {
+                    continue;
+                }
+                Pool_se.addNotProcessed(new URLDepthPair(link, pair.getDepth() - 1));
+            }
+        }
+        reader.close();
     }
 }

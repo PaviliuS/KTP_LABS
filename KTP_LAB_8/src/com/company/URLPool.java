@@ -1,100 +1,64 @@
 package com.company;
 
-import java.util.*;
+import java.util.LinkedList;
 
-/**
- * Класс списка URL, который хранит список URL адресов, которые найдены
- * с заданной depth. Хранится как экземпляр URLDepthPair.
- */
 public class URLPool {
+    private LinkedList<URLDepthPair> Processed_se = new LinkedList<URLDepthPair>();
+    private LinkedList<URLDepthPair> NotProcessed_se = new LinkedList<URLDepthPair>();
+    private int Depth_se;
+    private int Waiting_se;
+    private int Threads_se;
 
-    /** Связанный список, для представления, ожидающих URL адресов. */
-    private LinkedList<URLDepthPair> pendingURLsGTR;
-
-    /** Связяннный список, для представления обработанных URL адресов. */
-    public LinkedList<URLDepthPair> processedURLsGTR;
-
-    /** Класс ArrayList для представления просмотренных URL адресов. */
-    private ArrayList<String> seenURLsGTR = new ArrayList<String>();
-
-    /** int, для отслеживания количества ожидающих потоков. */
-    public int waitingThreadsGTR;
-
-    /**
-     * Конструктор для инициализации ожидающих потоков, обработанных URL адресов и
-     * ожидающих URL адресов.
-     */
-    public URLPool() {
-        waitingThreadsGTR = 0;
-        pendingURLsGTR = new LinkedList<URLDepthPair>();
-        processedURLsGTR = new LinkedList<URLDepthPair>();
+    public URLPool(String url, int depth, int threads) {
+        NotProcessed_se.add(new URLDepthPair(url, depth));
+        Depth_se = depth;
+        Threads_se = threads;
     }
 
-    /** Синхронизированный метод, для получения количества ожидающих потоков. */
-    public synchronized int getWaitThreads() {
-        return waitingThreadsGTR;
-    }
-
-    /** Синхронизированный метод, для возврата размера списка. */
-    public synchronized int size() {
-        return pendingURLsGTR.size();
-    }
-
-    /** Синхронизированный метод, для добавления depthPair в список. */
-    public synchronized boolean put(URLDepthPair depthPair) {
-
-        /** Переменная для отслеживания, был ли добавлен depthPair. */
-        boolean added = false;
-
-        /** Если depth меньше чем max depth, добавляет depthPair в список. */
-        if (depthPair.getDepth() < depthPair.getDepth()) {
-            pendingURLsGTR.addLast(depthPair);
-            added = true;
-
-            /** Уменьшает количество ожидающих потоков. */
-            waitingThreadsGTR--;
-            this.notify();
-        }
-        /**
-         * Если depth не меньше чем max depth, просто добавляет depthPair
-         * в просмотренный список.
-         */
-        else {
-            seenURLsGTR.add(depthPair.getURL());
-        }
-        return added;
-    }
-
-    /** Синхронизированный метод, для получения следующей depthPair из списка. */
-    public synchronized URLDepthPair get() {
-
-        /** Устанавливает depthPair = null. */
-        URLDepthPair myDepthPair = null;
-
-        /** Пока список пуст, ожидает. */
-        if (pendingURLsGTR.size() == 0) {
-            waitingThreadsGTR++;
-            try {
-                this.wait();
+    public synchronized URLDepthPair get() throws InterruptedException {
+        if (isEmpty()) {
+            Waiting_se++;
+            if (Waiting_se == Threads_se) {
+                getSites();
+                System.exit(0);
             }
-            catch (InterruptedException e) {
-                System.err.println("MalformedURLException: " + e.getMessage());
-                return null;
-            }
+            wait();
         }
-
-        /**
-         * Удаляет первый depthPair, добавляет просмотренные и обработанные
-         * URL адреса и возвращает их.
-         */
-        myDepthPair = pendingURLsGTR.removeFirst();
-        seenURLsGTR.add(myDepthPair.getURL());
-        processedURLsGTR.add(myDepthPair);
-        return myDepthPair;
+        return NotProcessed_se.removeFirst();
     }
 
-    /** Синхронизированный метод для получения, просмотренных URL адресов. */
-    public synchronized ArrayList<String> getSeenList() {
-        return seenURLsGTR;
+    public synchronized void addNotProcessed(URLDepthPair pair) {
+        NotProcessed_se.add(pair);
+        if (Waiting_se > 0) {
+            Waiting_se--;
+            notify();
+        }
+    }
+
+    private boolean isEmpty() {
+        if (NotProcessed_se.size() == 0) {
+            return true;
+        }
+        return false;
+    }
+
+    public void getSites() {
+        System.out.println("Глубина поиска: " + Depth_se);
+        for (int i = 0; i < Processed_se.size(); i++) {
+            System.out.println(Depth_se - Processed_se.get(i).getDepth() + " " +  Processed_se.get(i).getURL());
+        }
+        System.out.println("Посещённые ссылки: " + Processed_se.size());
+    }
+
+    public void addProcessed(URLDepthPair pair) {
+        Processed_se.add(pair);
+    }
+
+    public LinkedList<URLDepthPair> getProcessed() {
+        return Processed_se;
+    }
+
+    public LinkedList<URLDepthPair> getNotProcessed() {
+        return NotProcessed_se;
     }
 }

@@ -1,66 +1,35 @@
 package com.company;
 
-import java.net.*;
+import java.util.Objects;
 
-/**
- * Класс представляет пару [URL, depth] для нашего Crawler.
- */
 public class URLDepthPair {
-    /**
-     * Поля представляющие текущий URL и depth.
-     */
-    private int currentDepthGTR;
-    private String currentURLGTR;
-    /**
-     * Конструктор, который устанавливает входящие данные текущего URL и depth.
-     */
-    public URLDepthPair(String URL, int depth) {
-        currentDepthGTR = depth;
-        currentURLGTR = URL;
+    private String Url_se;
+    private int Depth_se;
+
+    public URLDepthPair(String host, int depth) {
+        Url_se = host;
+        Depth_se = depth;
     }
-    /**
-     * Метод, который возвращает текущий URL.
-     */
+
     public String getURL() {
-        return currentURLGTR;
+        return Url_se;
     }
-    /**
-     * Метод, который возвращает текущий depth.
-     */
+
     public int getDepth() {
-        return currentDepthGTR;
+        return Depth_se;
     }
-    /**
-     * Метод, который возвращает текущие URL и depth в формате String.
-     */
-    public String toString() {
-        String stringDepth = Integer.toString(currentDepthGTR);
-        return stringDepth + '\t' + currentURLGTR;
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof URLDepthPair) {
+            URLDepthPair o = (URLDepthPair)obj;
+            return this.Url_se.equals(o.getURL());
+        }
+        return false;
     }
-    /**
-     * Метод, который возвращает docPath текущего URL.
-     */
-    public String getDocPath() {
-        try {
-            URL url = new URL(currentURLGTR);
-            return url.getPath();
-        }
-        catch (MalformedURLException e) {
-            System.err.println("MalformedURLException: " + e.getMessage());
-            return null;
-        }
-    }
-    /**
-     * Метод, который возвращает webHost текущего URL.
-     */
-    public String getWebHost() {
-        try {
-            URL url = new URL(currentURLGTR);
-            return url.getHost();
-        }
-        catch (MalformedURLException e) {
-            System.err.println("MalformedURLException: " + e.getMessage());
-            return null;
-        }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash();
     }
 }
