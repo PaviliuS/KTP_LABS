@@ -1,185 +1,74 @@
 package com.company;
-import java.net.*;
-import java.util.*;
+
 import java.io.*;
+import java.net.*;
+import java.util.LinkedList;
 
-/**
- * Этот класс представляет главную функциональность нашего приложения.
- * Приложение имеет метод getAllLinks для хранения всех ссылок на данной веб-странице
- * в дополнение к основному методу, который продолжает отслеживать важные переменные.
- */
 public class Crawler {
-    /**
-     * Основной метод crawler. Программа должна приниматть строку,
-     * которая представляет URL, с которого начинается просмотр и положительное
-     * целое число, представляющее максимальную depth поиска. Хранит URL как строку с
-     * глубиной как URLDepthPair. Отслеживает обработанные ссылки, ожидающие ссылки,
-     * просмотренные ссылки и глубину. Выводит список всех обработанных ссылок с их глубиной.
-     * Перебирает pendingURLs, чтобы получить все ссылки и добавить их в обработанные URLs и
-     * просмотренные URLs.
-     */
-    public static void main(String[] args) {
+    final static int AnyDepth = 0;
+    private LinkedList<URLDepthPair> Processed_se = new LinkedList<URLDepthPair>();
+    private LinkedList<URLDepthPair> NotProcessed_se = new LinkedList<URLDepthPair>();
 
-        int depthGTR = 0;
+    private int Depth_se;
+    private String StartHost_se;
 
-        if (args.length != 2) {
-            System.out.println("usage: java Crawler <URL> <depth>");
-            System.exit(1);
-        }
-        else {
-            try {
-                depthGTR = Integer.parseInt(args[1]);
-            }
-            catch (NumberFormatException nfe) {
-                System.out.println("usage: java Crawler <URL> <depth>");
-                System.exit(1);
-            }
-        }
+    /** Нет "/" для поддержки https */
+    private String Prefix_se = "http";
 
-        LinkedList<URLDepthPair> pendingURLsGTR = new LinkedList<URLDepthPair>();
-        LinkedList<URLDepthPair> processedURLsGTR = new LinkedList<URLDepthPair>();
-        URLDepthPair currentDepthPairGTR = new URLDepthPair(args[0], 0);
-        pendingURLsGTR.add(currentDepthPairGTR);
-        ArrayList<String> seenURLsGTR = new ArrayList<String>();
-        seenURLsGTR.add(currentDepthPairGTR.getURL());
+    public Crawler(String host, int depth) {
+        StartHost_se = host;
+        Depth_se = depth;
+        NotProcessed_se.add(new URLDepthPair(StartHost_se, Depth_se));
+    }
 
-        while (pendingURLsGTR.size() != 0) {
+    public void Scan() throws IOException {
 
-            URLDepthPair depthPairGTR = pendingURLsGTR.pop();
-            processedURLsGTR.add(depthPairGTR);
-            int myDepthGTR = depthPairGTR.getDepth();
-
-            LinkedList<String> linksList = new LinkedList<String>();
-            linksList = Crawler.getAllLinks(depthPairGTR);
-
-            if (myDepthGTR < depthGTR) {
-                for (int i=0;i<linksList.size();i++) {
-                    String newURL = linksList.get(i);
-                    if (seenURLsGTR.contains(newURL)) {
-                        continue;
-                    }
-                    else {
-                        URLDepthPair newDepthPair = new URLDepthPair(newURL, myDepthGTR + 1);
-                        pendingURLsGTR.add(newDepthPair);
-                        seenURLsGTR.add(newURL);
-                    }
-                }
-            }
-        }
-
-        Iterator<URLDepthPair> iterGTR = processedURLsGTR.iterator();
-        while (iterGTR.hasNext()) {
-            System.out.println(iterGTR.next());
+        while (NotProcessed_se.size() > 0) {
+            Process(NotProcessed_se.removeFirst());
         }
     }
-    /**
-     * Метод, который берёт URLDepthPair и возвращает LinkedList в формате String.
-     * Подключается к сайту в паре URLDepth, находит все ссылки на сайте и добавляет
-     * их в новый LinkedList, который потом вовращается.
-     */
-    private static LinkedList<String> getAllLinks(URLDepthPair myDepthPair) {
 
-        LinkedList<String> URLsGTR = new LinkedList<String>();
-        Socket sockGTR;
+    public void Process(URLDepthPair pair) throws IOException{
+        /** Установка соединения и перенаправление */
+        URL url = new URL(pair.getURL());
+        URLConnection url_connection = url.openConnection();
+        String redirect = url_connection.getHeaderField("Местоположение");
 
-        try {
-            sockGTR = new Socket(myDepthPair.getWebHost(), 80);
+        if (redirect != null) {
+            url_connection = new URL(redirect).openConnection();
         }
-        catch (UnknownHostException e) {
-            System.err.println("UnknownHostException: " + e.getMessage());
-            return URLsGTR;
-        }
-        catch (IOException ex) {
-            System.err.println("IOException: " + ex.getMessage());
-            return URLsGTR;
+        Processed_se.add(pair);
+
+        if (pair.getDepth() == 0) {
+            return;
         }
 
-        try {
-            sockGTR.setSoTimeout(3000);
-        }
-        catch (SocketException exc) {
-            System.err.println("SocketException: " + exc.getMessage());
-            return URLsGTR;
-        }
-
-        String docPath = myDepthPair.getDocPath();
-        String webHost = myDepthPair.getWebHost();
-
-        OutputStream outStreamGTR;
-
-        try {
-            outStreamGTR = sockGTR.getOutputStream();
-        }
-        catch (IOException exce) {
-            System.err.println("IOException: " + exce.getMessage());
-            return URLsGTR;
-        }
-
-        PrintWriter myWriter = new PrintWriter(outStreamGTR, true);
-
-        myWriter.println("GET " + docPath + " HTTP/1.1");
-        myWriter.println("Host: " + webHost);
-        myWriter.println("Connection: close");
-        myWriter.println();
-
-        InputStream inStreamGTR;
-
-        try {
-            inStreamGTR = sockGTR.getInputStream();
-        }
-        catch (IOException excep){
-            System.err.println("IOException: " + excep.getMessage());
-            return URLsGTR;
-        }
-
-        InputStreamReader inStreamReader = new InputStreamReader(inStreamGTR);
-        BufferedReader BuffReader = new BufferedReader(inStreamReader);
-
-        while (true) {
-            String line;
-            try {
-                line = BuffReader.readLine();
-            }
-            catch (IOException except) {
-                System.err.println("IOException: " + except.getMessage());
-                return URLsGTR;
-            }
-
-            if (line == null) {
-                break;
-            }
-
-            int beginIndexGTR = 0;
-            int endIndexGTR = 0;
-            int indexGTR = 0;
-
-            while (true) {
-
-                /**
-                 * Константа для строки, которая указывает на ссылку.
-                 */
-                String URL_INDICATOR = "a href=\"";
-
-                /**
-                 * Константа для строки, указывающая на конец веб-хоста и начало docpath.
-                 */
-                String END_URL = "\"";
-
-                indexGTR = line.indexOf(URL_INDICATOR, indexGTR);
-                if (indexGTR == -1) {
-                    break;
+        /** Чтение ссылки */
+        BufferedReader reader = new BufferedReader(new InputStreamReader(url_connection.getInputStream()));
+        String input;
+        while ((input = reader.readLine()) != null) {
+            while (input.contains("a href=\"" + Prefix_se)) {
+                input = input.substring(input.indexOf("a href=\"" + Prefix_se) + 8);
+                String link = input.substring(0, input.indexOf('\"'));
+                if(link.contains(" ")) {
+                    link = link.replace(" ", "%20");
                 }
-
-                indexGTR += URL_INDICATOR.length();
-                beginIndexGTR = indexGTR;
-
-                endIndexGTR = line.indexOf(END_URL, indexGTR);
-                indexGTR = endIndexGTR;
-
-                String newLink = line.substring(beginIndexGTR, endIndexGTR);
-                URLsGTR.add(newLink);
+                /** Не обрабатывает посещение одинаковых ссылок */
+                if (NotProcessed_se.contains(new URLDepthPair(link, AnyDepth)) ||
+                        Processed_se.contains(new URLDepthPair(link, AnyDepth))) {
+                    continue;
+                }
+                NotProcessed_se.add(new URLDepthPair(link, pair.getDepth() - 1));
             }
         }
-        return URLsGTR;
+        reader.close();
+    }
+
+    public void getSites() {
+        /** Вывод ссылок */
+        for (URLDepthPair elem : Processed_se){
+            System.out.println(elem.getURL());
+        }
+        System.out.println("Посещённые ссылки: " + Processed_se.size());
     }
 }
